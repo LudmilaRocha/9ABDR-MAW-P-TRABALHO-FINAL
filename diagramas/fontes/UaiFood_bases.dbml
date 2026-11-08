@@ -1,0 +1,133 @@
+// Uai Food - bases de dados por microsserviço (PostgreSQL)
+// Cole em https://dbdiagram.io/d (menu: Import > DBML, ou direto no editor)
+
+// ---------- Clientes ----------
+Table cliente {
+  id_cliente int [pk, increment]
+  nome varchar
+  email varchar [unique]
+  telefone varchar
+  endereco varchar
+  criado_em timestamp
+}
+
+// ---------- Restaurantes ----------
+Table restaurante {
+  id_restaurante int [pk, increment]
+  nome varchar
+  cnpj varchar [unique]
+  telefone varchar
+  endereco varchar
+  ativo boolean
+}
+
+Table prato {
+  id_prato int [pk, increment]
+  id_restaurante int [not null]
+  nome varchar
+  descricao varchar
+  preco decimal
+  disponivel boolean
+}
+
+// ---------- Pedidos ----------
+Table pedido {
+  id_pedido int [pk, increment]
+  id_cliente int [not null, note: 'ref. lógica -> Clientes']
+  id_restaurante int [not null, note: 'ref. lógica -> Restaurantes']
+  status varchar [note: 'CRIADO, CONFIRMADO, PAGO, EM_ENTREGA, ENTREGUE, CANCELADO']
+  valor_total decimal
+  criado_em timestamp
+  atualizado_em timestamp
+}
+
+Table item_pedido {
+  id_item int [pk, increment]
+  id_pedido int [not null]
+  id_prato int [not null, note: 'ref. lógica -> Restaurantes']
+  quantidade int
+  preco_unitario decimal
+}
+
+// ---------- Pagamentos ----------
+Table pagamento {
+  id_pagamento int [pk, increment]
+  id_pedido int [not null, note: 'ref. lógica -> Pedidos']
+  valor decimal
+  metodo varchar
+  status varchar [note: 'PENDENTE, CONFIRMADO, FALHOU, ESTORNADO']
+  id_transacao_gateway varchar
+  criado_em timestamp
+}
+
+// ---------- Entregas ----------
+Table entregador {
+  id_entregador int [pk, increment]
+  nome varchar
+  telefone varchar
+  ativo boolean
+}
+
+Table entrega {
+  id_entrega int [pk, increment]
+  id_pedido int [not null, note: 'ref. lógica -> Pedidos']
+  id_entregador int [not null]
+  status varchar [note: 'AGUARDANDO, EM_ROTA, ENTREGUE, FALHOU']
+  motivo_falha varchar
+  criado_em timestamp
+  entregue_em timestamp
+}
+
+// ---------- Notificações ----------
+Table notificacao {
+  id_notificacao int [pk, increment]
+  id_pedido int [not null, note: 'ref. lógica -> Pedidos']
+  id_cliente int [not null, note: 'ref. lógica -> Clientes']
+  canal varchar [note: 'WHATSAPP, EMAIL, PUSH']
+  mensagem varchar
+  status_envio varchar
+  enviado_em timestamp
+}
+
+// ---------- Agrupamento por microsserviço ----------
+TableGroup clientes_svc {
+  cliente
+}
+
+TableGroup restaurantes_svc {
+  restaurante
+  prato
+}
+
+TableGroup pedidos_svc {
+  pedido
+  item_pedido
+}
+
+TableGroup pagamentos_svc {
+  pagamento
+}
+
+TableGroup entregas_svc {
+  entregador
+  entrega
+}
+
+TableGroup notificacoes_svc {
+  notificacao
+}
+
+// ---------- Relacionamentos dentro do mesmo serviço (chave estrangeira real) ----------
+Ref: restaurante.id_restaurante < prato.id_restaurante
+Ref: pedido.id_pedido < item_pedido.id_pedido
+Ref: entregador.id_entregador < entrega.id_entregador
+
+// ---------- Relacionamentos entre serviços (apenas por ID, sem FK entre bancos) ----------
+// Para um desenho mais limpo, apague este bloco.
+Ref: cliente.id_cliente < pedido.id_cliente
+Ref: restaurante.id_restaurante < pedido.id_restaurante
+Ref: prato.id_prato < item_pedido.id_prato
+Ref: pedido.id_pedido < pagamento.id_pedido
+Ref: pedido.id_pedido - entrega.id_pedido
+Ref: pedido.id_pedido < notificacao.id_pedido
+Ref: cliente.id_cliente < notificacao.id_cliente
